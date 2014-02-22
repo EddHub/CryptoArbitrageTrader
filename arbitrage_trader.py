@@ -10,12 +10,14 @@
 
 import btc_e_api, thread, time
 from time import strftime
+#import datetime from datetime
 from vircurex import *
-from PyCryptsy import PyCryptsy
+#from PyCryptsy import PyCryptsy
 import crypto
 from config import *
 from coinse_api import *
- 
+import sys
+
 ########################################################
 
 def getDepth_btce(pairpart1, pairpart2):
@@ -41,7 +43,7 @@ def getDepth_cryptotrade(pairpart1, pairpart2):
 def getDepth_coinse(pairpart1, pairpart2):
 	pairpart1 = pairpart1.upper()
 	pairpart2 = pairpart2.upper()
-	depth_coinse = unauthenticated_request('market/'+pairpart1+'_'+pairpart2+'/',"depth")#,{'pair':pairpart1+'_'+pairpart2})
+	depth_coinse = unauthenticated_request('market/'+pairpart1+'_'+pairpart2+'/'+'depth')#,{'pair':pairpart1+'_'+pairpart2})
 	return depth_coinse
 
 #########################################################
@@ -127,76 +129,119 @@ def make_trade(exchange, type, amount, pairpart1, pairpart2, rate):   # Type = "
 		return 0
 
 #############################################################
+def TestTrade(exchange,pairpart1,pairpart2):
 
-def compare():
-	print "Arbitrage Trader starting up..."
-	pairpart2 = "btc"
+        print "Test trading with " + pairpart1 +"/"+ pairpart2
 
-	n=0
-	while n<=(len(curr)-1):
-		print "Starting Arbitrage checking for " + curr[n]+"/btc"
-		pairpart1 = curr[n]
+        sys.stdout.write('\a')  #Beep
+        sys.stdout.flush()      #Beep
+        make_trade(exchange, "buy", amount1, pairpart1, pairpart2, 0.01)
+        make_trade(exchange, "sell", amount1, pairpart1, pairpart2, 8888)
+
+#############################################################
+def Compare(pairpart1,pairpart2):
+
+                print "Arbitrage checking for " + pairpart1 +"/"+pairpart2
+ 
+                sprice = []     #Bid price, exchange buy price, for me sell price
+                bprice = []     #Ask price, exchange sell price, for me buy price
+                
 		m=0
 		while m<=(len(exc)-1):
-			#print "m = " + str(m)
-			k = 0
-			while k<=(len(exc)-1):
-				#print "k = " + str(k)
-				try:
-					sprice = getS(exc[m], curr[n], "btc")
-					bprice = getB(exc[k], curr[n], "btc")
-					
-				except Exception:
-					pass
 
-				print "Sell price = " + str(sprice) + " on " + exc[m]
-				print "Buy price  = " + str(bprice) + " on " + exc[k]
-				
-				if (float(bprice) < float(sprice)):
-					print "Opportunity to buy " + curr[n] + " for "+ str(bprice)+ " on "+exc[k]+" and sell for " + str(sprice) + " on " + exc[m]
-					yie = (float(sprice) - float(bprice))/float(sprice)*100.0;
-					print "Yield before trading costs would be: "+str(yie)+"%"
-					
-				if round((float(bprice) * Diff * FEE),8) < round((float(sprice) * FEE),8):
-					make_trade(exc[m], "buy", amount1, pairpart1, "btc", bprice)
-					make_trade(exc[k], "sell", amount1, pairpart1, "btc", sprice)
-					#printouts for debugging
-					print "price on " + exc[m] + " for " + curr[n] + " is " + str(sprice) + " BTC"
-					print "price on " + exc[k] + " for " + curr[n] + " is " + str(bprice) + " BTC"
-					print "executing trade at a win per 1" + curr[n] + " of " + str(round(((str(sprice) * FEE)-(str(bprice) * Diff * FEE)),8)) + "BTC"
-				else:
-					try:
-						sprice = getS(exc[k], curr[n], "btc")
-						bprice = getB(exc[m], curr[n], "btc")
-					except Exception:
-						pass
-					if round((float(bprice) * Diff * FEE),8) < round((float(sprice) * FEE),8):
-						make_trade(exc[k], "buy", amount1, pairpart1, "btc", bprice)
-						make_trade(exc[m], "sell", amount1, pairpart1, "btc", sprice)
-						#printouts for debugging
-						print "price on " + exc[k] + " for " + curr[n] + " is " + str(sprice) + " BTC"
-						print "price on " + exc[m] + " for " + curr[n] + " is " + str(bprice) + " BTC"
-						print "executing trade at a win per 1" + curr[n] + " of " + str(round(((sprice * FEE)-(bprice * Diff * FEE)),8)) + "BTC"
-				k+=1
-			m+=1
-		n+=1
+                        BidPriceException = False
+                        AskPriceException = False
+                        sprice.append(-88888)
+                        bprice.append(88888)
+                               
+                        try:
+                                sprice[m] = float(getS(exc[m], pairpart1, pairpart2))
 
+                        except  Exception:
+                                BidPriceException = True
+ 
+                        try:
+                                bprice[m] = float(getB(exc[m], pairpart1, pairpart2))
+
+                        except Exception:
+                               AskPriceException = True
+                                
+
+                        if BidPriceException:
+                                if AskPriceException:
+                                        print "Exception on " + str(exc[m]) + " bid and ask price"
+
+                                else: #AskPriceException = false
+                                        print "Exception on " + str(exc[m]) + " bid price"
+
+                        else: #BidPriceException = false
+                                if AskPriceException:
+                                        print "Exception on " + str(exc[m]) + " ask price"
+                                        
+                                else: #AskPriceException = false
+                                        #print exc[m] + ": bid " + str(bprice[m]) + ", ask " + str(sprice[m])
+                                        pass
+
+                        m+=1
+
+                #print "On " + str(exc) + ": bids " + str(sprice) + ", asks " + str(bprice)
+                
+                HiBid = max(sprice)             
+                HiExc = sprice.index(HiBid)
+                LoAsk = min(bprice)             
+                LoExc = bprice.index(LoAsk)     
+
+                print "Highest bid on " + exc[HiExc] + ": " + str(HiBid) + "; lowest ask on " + exc[LoExc] + ": " + str(LoAsk)
+                
+                if LoAsk < HiBid:
+                        #print "Positive spread: Bid " + str(HiBid) + " (" + exc[HiExc] + ") - Ask " + str(LoAsk) + " (" + exc[LoExc] + ")"
+
+                        HiBidAftFee = HiBid/FEE
+                        LoAskAftFee = LoAsk*FEE
+                        
+                        if LoAskAftFee < HiBidAftFee:
+                                yld = (HiBidAftFee - LoAskAftFee)/LoAskAftFee
+                                #print "Potential arbitrage opportunity, yield after fees" + str(round(yld,2)) + "%"
+
+                                if Diff < yld*100:
+                                        print "* Arbitrage opportunity, yield after fees" + str(round(yld,2)) + "%"
+                                        sys.stdout.write('\a')  #Beep
+                                        sys.stdout.flush()      #Beep
+                                        make_trade(exc[LoExc], "buy", amount1*yld, pairpart1, pairpart2, LoAsk)
+                                        make_trade(exc[HiExc], "sell", amount1*yld, pairpart1, pairpart2, HiBid)
+                                        print "* " + pairpart1 + " bought on " + exc[m] + ", sold on " + exc[k]
+                                        
+                                else:
+                                        print "Positive spread below hurdle, yield after fees" + str(round(yld,2)) + "%"
+
+                        else:
+                                print "Positive spread less than fees"
+                
+                else:
+                        print "Negative spread"
 
 ###############################################################
 
 def main():
 	"""main function, called at the start of the program"""
- 
+        
 	def run1(sleeptime, lock):
-		while True:
+                i=1
+                pairpart1 = "ltc"
+                pairpart2 = "btc"
+                while True:
 			lock.acquire()
-			compare() #The main Arbitrage function
-			print "Round completed sleeping for 15 seconds"
+			print "Starting round " + str(i)
+			#TestTrade("Coins-e",pairpart1,pairpart2)
+                        Compare(pairpart1,pairpart2)
+                        i=i+1
+			print "Round completed, sleeping for 20 seconds"
+			print ""
 			lock.release()
 			time.sleep(sleeptime)
  
 	lock = thread.allocate_lock()
-	thread.start_new_thread(run1, (15, lock))
+	thread.start_new_thread(run1, (20, lock))
  
 	while True:
 		pass
